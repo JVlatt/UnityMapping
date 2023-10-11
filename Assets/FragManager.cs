@@ -8,6 +8,8 @@ public class FragManager : MonoBehaviour
 	public float TriggerDelay = .1f;
 	public int FragTriggered = 1;
 	public bool RemoveTriggeredFrag = true;
+	public bool Loop = false;
+	public bool ForceTrigger = false;
 	public FragIndexOrder fragIndexOrder;
 
 	public List<Frag> m_fragList = new List<Frag>();
@@ -16,7 +18,9 @@ public class FragManager : MonoBehaviour
 
 	private void Awake ()
 	{
-		m_fragListCopy = m_fragList;
+		foreach (Frag frag in m_fragList)
+			m_fragListCopy.Add(frag);
+
 		if(fragIndexOrder != null ) 
 		{
 			m_fragListCopy = new();
@@ -42,10 +46,17 @@ public class FragManager : MonoBehaviour
 
 	void TriggerFrag (int index)
 	{
-		if (m_fragList.Count == 0)
-			return;
+		if (m_fragListCopy.Count == 0)
+        {
+			if(Loop)
+            {
+                foreach (Frag frag in m_fragList)
+                    m_fragListCopy.Add(frag);
+            }
+            return;
+        }
 
-		m_fragListCopy[index].TriggerFrag();
+		m_fragListCopy[index].TriggerFrag(ForceTrigger);
 		
 		if (RemoveTriggeredFrag)
 			m_fragListCopy.RemoveAt(index);

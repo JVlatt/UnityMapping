@@ -74,21 +74,29 @@ public class Frag : MonoBehaviour
 
 	}
 
-	public void TriggerFrag()
+	public void TriggerFrag(bool forceTrigger)
 	{
-		m_timer = 0f;
-		m_state = FadeIn ? State.IN : State.OUT;
+		if(forceTrigger)
+        {
+			m_timer = 0f;
+            m_state = FadeIn ? State.IN : State.OUT;
+        }
+		else if(m_state == State.WAIT)
+        {
+            m_timer = 0f;
+            m_state = FadeIn ? State.IN : State.OUT;
+        }
 	}
 
 	private void OnTriggerEnter2D ( Collider2D collision )
 	{
 		if (collision.tag == "Chaser")
-			TriggerFrag();
+			TriggerFrag(true);
 	}
 
 	private void OnTriggerExit2D ( Collider2D collision )
 	{
 		if (collision.tag == "Chaser")
-			TriggerFrag();
+			TriggerFrag(true);
 	}
 }
