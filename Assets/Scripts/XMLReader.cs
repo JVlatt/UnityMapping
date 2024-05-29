@@ -13,6 +13,7 @@ public class XMLReader : MonoBehaviour
 {
 	public TextAsset fileToRead;
 	public bool screenSized = false;
+	public bool generate3D = true;
 	private XmlDocument xmlDocument;
 	public Material baseMaterial;
 	public bool overrideExisting = true;
@@ -33,19 +34,21 @@ public class XMLReader : MonoBehaviour
 
 		if (items.Count > 0)
 		{
-			GameObject parent = new GameObject(fileToRead.name);
+			string setupName = fileToRead.name + (generate3D ? "3D" : "2D");
+
+            GameObject parent = new GameObject(setupName);
 			Transform fragManagerTransform = FindObjectOfType<FragManager>().transform;
-			if (overrideExisting && fragManagerTransform.Find(fileToRead.name) != null)
+			if (overrideExisting && fragManagerTransform.Find(setupName) != null)
 			{
-				DestroyImmediate(fragManagerTransform.Find(fileToRead.name).gameObject);
+				DestroyImmediate(fragManagerTransform.Find(setupName).gameObject);
 			}
 			parent.transform.parent = FindObjectOfType<FragManager>().transform;
 
-			if (Directory.Exists("Assets/GeneratedMeshes/" + fileToRead.name))
+			if (Directory.Exists("Assets/GeneratedMeshes/" + setupName))
 			{
-				Directory.Delete("Assets/GeneratedMeshes/" + fileToRead.name, true);
+				Directory.Delete("Assets/GeneratedMeshes/" + setupName, true);
 			}
-			Directory.CreateDirectory("Assets/GeneratedMeshes/" + fileToRead.name);
+			Directory.CreateDirectory("Assets/GeneratedMeshes/" + setupName);
 
 			foreach (XmlNode node in items)
 			{
@@ -56,9 +59,9 @@ public class XMLReader : MonoBehaviour
 					int polyIndex = 0;
 					GameObject screenGO = new GameObject(node.Attributes["name"].Value);
 					screenGO.transform.parent = parent.transform;
-					if (!Directory.Exists("Assets/GeneratedMeshes/" + fileToRead.name + "/" + node.Attributes["name"].Value))
+					if (!Directory.Exists("Assets/GeneratedMeshes/" + setupName + "/" + node.Attributes["name"].Value))
 					{
-						Directory.CreateDirectory("Assets/GeneratedMeshes/" + fileToRead.name + "/" + node.Attributes["name"].Value);
+						Directory.CreateDirectory("Assets/GeneratedMeshes/" + setupName + "/" + node.Attributes["name"].Value);
 					}
 					foreach (XmlNode polygon in polygons)
 					{
@@ -82,13 +85,31 @@ public class XMLReader : MonoBehaviour
 						Vector2[] sortedPoints = SortPointsClockwise(points);
 
 						MeshFilter meshfilter = polyGO.AddComponent<MeshFilter>();
+						Mesh mesh = new Mesh();
+
+						if(generate3D)
+                        {
+							mesh = Generate3DMesh(AdjustPointsToBoundingBoxCenter(sortedPoints, center), extrusionDepth);
+							InvertNormals(mesh);
+							MeshCollider meshcol = polyGO.AddComponent<MeshCollider>();
+							meshcol.convex = true;
+							meshcol.isTrigger = true;
+                        }
+						else
+                        {
+							PolygonCollider2D polCol = polyGO.AddComponent<PolygonCollider2D>();
+							polCol.points = AdjustPointsToBoundingBoxCenter(sortedPoints, center);
+							//mesh = Generate2DMesh(AdjustPointsToBoundingBoxCenter(sortedPoints,center));
+							mesh = polCol.CreateMesh(false, false);
+							InvertNormals(mesh);
+							polCol.isTrigger = true;
+                        }
+
+						mesh.uv = CalculateUVs(mesh, 1f);
+
+						AssetDatabase.CreateAsset(mesh, "Assets/GeneratedMeshes/" + setupName + "/" + node.Attributes["name"].Value + "/GeneratedMesh_" + polyIndex.ToString() + ".asset");
+
 						polyGO.transform.position = center;
-
-						Mesh mesh = Generate3DMesh(AdjustPointsToBoundingBoxCenter(sortedPoints, center), extrusionDepth);
-						InvertNormals(mesh);
-
-						AssetDatabase.CreateAsset(mesh, "Assets/GeneratedMeshes/" + fileToRead.name + "/" + node.Attributes["name"].Value + "/GeneratedMesh_" + polyIndex.ToString() + ".asset");
-
 						meshfilter.mesh = mesh;
 						Frag frag = polyGO.AddComponent<Frag>();
 
@@ -188,7 +209,38 @@ public class XMLReader : MonoBehaviour
 		m.Optimize();
 		return m;
 	}
-	public void InvertNormals ( Mesh mesh )
+
+    public Mesh Generate2DMesh(Vector2[] points)
+    {
+        Mesh mesh = new Mesh();
+
+        // Conversion de la liste de points en tableau
+        Vector3[] vertices = new Vector3[points.Length];
+
+		for(int i = 0; i < points.Length - 1; i++)
+        {
+			vertices[i] = new Vector3(points[i].x, points[i].y, 0);
+        }
+
+        // Création de la liste de triangles (triangulation simple pour un polygone)
+        List<int> triangles = new List<int>();
+        for (int i = 1; i < points.Length - 1; i++)
+        {
+            triangles.Add(0);
+            triangles.Add(i);
+            triangles.Add(i + 1);
+        }
+
+        // Configuration du mesh
+        mesh.vertices = vertices;
+        mesh.triangles = triangles.ToArray();
+
+        mesh.RecalculateNormals();
+        mesh.RecalculateBounds();
+
+        return mesh;
+    }
+    public void InvertNormals ( Mesh mesh )
 	{
 		// Get the mesh triangles
 		int[] triangles = mesh.triangles;
@@ -242,6 +294,86 @@ public class XMLReader : MonoBehaviour
 
 		return new Vector2(centroidX, centroidY);
 	}
+
+
+
+	//UV CALCULATION
+
+    public enum Facing { Up, Forward, Right };
+
+    public Vector2[] CalculateUVs(Mesh mesh, float scale)
+    {
+        var uvs = new Vector2[mesh.vertices.Length];
+
+        for (int i = 0; i < uvs.Length; i += 3)
+        {
+            int i0 = i;
+            int i1 = i + 1;
+            int i2 = i + 2;
+
+            Vector3 v0 = mesh.vertices[mesh.triangles[i0]];
+            Vector3 v1 = mesh.vertices[mesh.triangles[i1]];
+            Vector3 v2 = mesh.vertices[mesh.triangles[i2]];
+
+            Vector3 side1 = v1 - v0;
+            Vector3 side2 = v2 - v0;
+            var direction = Vector3.Cross(side1, side2);
+            var facing = FacingDirection(direction);
+            switch (facing)
+            {
+                case Facing.Forward:
+                    uvs[i0] = ScaledUV(v0.x, v0.y, scale);
+                    uvs[i1] = ScaledUV(v1.x, v1.y, scale);
+                    uvs[i2] = ScaledUV(v2.x, v2.y, scale);
+                    break;
+                case Facing.Up:
+                    uvs[i0] = ScaledUV(v0.x, v0.z, scale);
+                    uvs[i1] = ScaledUV(v1.x, v1.z, scale);
+                    uvs[i2] = ScaledUV(v2.x, v2.z, scale);
+                    break;
+                case Facing.Right:
+                    uvs[i0] = ScaledUV(v0.y, v0.z, scale);
+                    uvs[i1] = ScaledUV(v1.y, v1.z, scale);
+                    uvs[i2] = ScaledUV(v2.y, v2.z, scale);
+                    break;
+            }
+        }
+        return uvs;
+    }
+
+    public bool FacesThisWay(Vector3 v, Vector3 dir, Facing p, ref float maxDot, ref Facing ret)
+    {
+        float t = Vector3.Dot(v, dir);
+        if (t > maxDot)
+        {
+            ret = p;
+            maxDot = t;
+            return true;
+        }
+        return false;
+    }
+
+    public Facing FacingDirection(Vector3 v)
+    {
+        var ret = Facing.Up;
+        float maxDot = 0;
+
+        if (!FacesThisWay(v, Vector3.right, Facing.Right, ref maxDot, ref ret))
+            FacesThisWay(v, Vector3.left, Facing.Right, ref maxDot, ref ret);
+
+        if (!FacesThisWay(v, Vector3.forward, Facing.Forward, ref maxDot, ref ret))
+            FacesThisWay(v, Vector3.back, Facing.Forward, ref maxDot, ref ret);
+
+        if (!FacesThisWay(v, Vector3.up, Facing.Up, ref maxDot, ref ret))
+            FacesThisWay(v, Vector3.down, Facing.Up, ref maxDot, ref ret);
+
+        return ret;
+    }
+
+    public Vector2 ScaledUV(float uv1, float uv2, float scale)
+    {
+        return new Vector2(uv1 / scale, uv2 / scale);
+    }
 }
 
 public class Triangulator
