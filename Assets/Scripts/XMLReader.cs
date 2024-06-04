@@ -18,7 +18,7 @@ public class XMLReader : MonoBehaviour
 	public Material baseMaterial;
 	public bool overrideExisting = true;
 	public float extrusionDepth = 1.0f;
-
+	public bool invertNormals = true;
 
 	public void LoadScreens ()
 	{
@@ -90,8 +90,8 @@ public class XMLReader : MonoBehaviour
 						if(generate3D)
                         {
 							mesh = Generate3DMesh(AdjustPointsToBoundingBoxCenter(sortedPoints, center), extrusionDepth);
-							InvertNormals(mesh);
 							MeshCollider meshcol = polyGO.AddComponent<MeshCollider>();
+							meshcol.sharedMesh = mesh;
 							meshcol.convex = true;
 							meshcol.isTrigger = true;
                         }
@@ -101,16 +101,22 @@ public class XMLReader : MonoBehaviour
 							polCol.points = AdjustPointsToBoundingBoxCenter(sortedPoints, center);
 							//mesh = Generate2DMesh(AdjustPointsToBoundingBoxCenter(sortedPoints,center));
 							mesh = polCol.CreateMesh(false, false);
-							InvertNormals(mesh);
-							polCol.isTrigger = true;
-                        }
+							MeshCollider meshcol = polyGO.AddComponent<MeshCollider>();
+							meshcol.sharedMesh = mesh;
+							meshcol.convex = true;
+							meshcol.isTrigger = true;
+							Destroy(polCol);
+						}
 
-						mesh.uv = CalculateUVs(mesh, 1f);
+						if (invertNormals)
+							InvertNormals(mesh);
+
+						//mesh.uv = CalculateUVs(mesh, 1f);
 
 						AssetDatabase.CreateAsset(mesh, "Assets/GeneratedMeshes/" + setupName + "/" + node.Attributes["name"].Value + "/GeneratedMesh_" + polyIndex.ToString() + ".asset");
 
-						polyGO.transform.position = center;
 						meshfilter.mesh = mesh;
+						polyGO.transform.position = center;
 						Frag frag = polyGO.AddComponent<Frag>();
 
 						polyGO.GetComponent<MeshRenderer>().material = baseMaterial;
@@ -159,58 +165,150 @@ public class XMLReader : MonoBehaviour
 		return adjustedPoints;
 	}
 
+	//public Mesh Generate3DMesh ( Vector2[] points, float depth )
+	//{
+	//	Triangulator triangulator = new Triangulator(points);
+	//	int[] tris = triangulator.Triangulate();
+	//	Mesh m = new Mesh();
+	//	Vector3[] vertices = new Vector3[points.Length * 2];
+
+	//	for (int i = 0; i < points.Length; i++)
+	//	{
+	//		vertices[i].x = points[i].x;
+	//		vertices[i].y = points[i].y;
+	//		vertices[i].z = 0; // front vertex
+	//		vertices[i + points.Length].x = points[i].x;
+	//		vertices[i + points.Length].y = points[i].y;
+	//		vertices[i + points.Length].z = -depth;  // back vertex    
+	//	}
+	//	int[] triangles = new int[tris.Length * 2 + points.Length * 6];
+	//	int count_tris = 0;
+	//	for (int i = 0; i < tris.Length; i += 3)
+	//	{
+	//		triangles[i] = tris[i];
+	//		triangles[i + 1] = tris[i + 1];
+	//		triangles[i + 2] = tris[i + 2];
+	//	} // front vertices
+	//	count_tris += tris.Length;
+	//	for (int i = 0; i < tris.Length; i += 3)
+	//	{
+	//		triangles[count_tris + i] = tris[i + 2] + points.Length;
+	//		triangles[count_tris + i + 1] = tris[i + 1] + points.Length;
+	//		triangles[count_tris + i + 2] = tris[i] + points.Length;
+	//	} // back vertices
+	//	count_tris += tris.Length;
+	//	for (int i = 0; i < points.Length; i++)
+	//	{
+	//		int n = (i + 1) % points.Length;
+	//		triangles[count_tris] = n;
+	//		triangles[count_tris + 1] = i + points.Length;
+	//		triangles[count_tris + 2] = i;
+	//		triangles[count_tris + 3] = n;
+	//		triangles[count_tris + 4] = n + points.Length;
+	//		triangles[count_tris + 5] = i + points.Length;
+	//		count_tris += 6;
+	//	}
+	//	m.vertices = vertices;
+	//	m.triangles = triangles;
+	//	m.RecalculateNormals();
+	//	m.RecalculateBounds();
+	//	m.Optimize();
+	//	return m;
+	//}
 	public Mesh Generate3DMesh ( Vector2[] points, float depth )
 	{
 		Triangulator triangulator = new Triangulator(points);
 		int[] tris = triangulator.Triangulate();
 		Mesh m = new Mesh();
-		Vector3[] vertices = new Vector3[points.Length * 2];
 
-		for (int i = 0; i < points.Length; i++)
-		{
-			vertices[i].x = points[i].x;
-			vertices[i].y = points[i].y;
-			vertices[i].z = 0; // front vertex
-			vertices[i + points.Length].x = points[i].x;
-			vertices[i + points.Length].y = points[i].y;
-			vertices[i + points.Length].z = -depth;  // back vertex    
-		}
+		int frontVerticesCount = points.Length;
+		int backVerticesCount = points.Length;
+		int sideVerticesCount = points.Length * 4; // each edge of the polygon has 4 vertices (2 per end)
+
+		Vector3[] vertices = new Vector3[frontVerticesCount + backVerticesCount + sideVerticesCount];
+		Vector3[] normals = new Vector3[vertices.Length];
 		int[] triangles = new int[tris.Length * 2 + points.Length * 6];
-		int count_tris = 0;
-		for (int i = 0; i < tris.Length; i += 3)
-		{
-			triangles[i] = tris[i];
-			triangles[i + 1] = tris[i + 1];
-			triangles[i + 2] = tris[i + 2];
-		} // front vertices
-		count_tris += tris.Length;
-		for (int i = 0; i < tris.Length; i += 3)
-		{
-			triangles[count_tris + i] = tris[i + 2] + points.Length;
-			triangles[count_tris + i + 1] = tris[i + 1] + points.Length;
-			triangles[count_tris + i + 2] = tris[i] + points.Length;
-		} // back vertices
-		count_tris += tris.Length;
+
+		int vertIndex = 0;
+		int triIndex = 0;
+
+		// Front vertices and normals
 		for (int i = 0; i < points.Length; i++)
 		{
-			int n = (i + 1) % points.Length;
-			triangles[count_tris] = n;
-			triangles[count_tris + 1] = i + points.Length;
-			triangles[count_tris + 2] = i;
-			triangles[count_tris + 3] = n;
-			triangles[count_tris + 4] = n + points.Length;
-			triangles[count_tris + 5] = i + points.Length;
-			count_tris += 6;
+			vertices[vertIndex] = new Vector3(points[i].x, points[i].y, 0);
+			normals[vertIndex] = Vector3.forward;
+			vertIndex++;
 		}
+
+		// Back vertices and normals
+		for (int i = 0; i < points.Length; i++)
+		{
+			vertices[vertIndex] = new Vector3(points[i].x, points[i].y, -depth);
+			normals[vertIndex] = Vector3.back;
+			vertIndex++;
+		}
+
+		// Side vertices and normals
+		for (int i = 0; i < points.Length; i++)
+		{
+			int nextIndex = (i + 1) % points.Length;
+
+			vertices[vertIndex] = new Vector3(points[i].x, points[i].y, 0);
+			vertices[vertIndex + 1] = new Vector3(points[i].x, points[i].y, -depth);
+			vertices[vertIndex + 2] = new Vector3(points[nextIndex].x, points[nextIndex].y, 0);
+			vertices[vertIndex + 3] = new Vector3(points[nextIndex].x, points[nextIndex].y, -depth);
+
+			Vector3 normal = Vector3.Cross(vertices[vertIndex + 1] - vertices[vertIndex], vertices[vertIndex + 2] - vertices[vertIndex]).normalized;
+
+			normals[vertIndex] = normal;
+			normals[vertIndex + 1] = normal;
+			normals[vertIndex + 2] = normal;
+			normals[vertIndex + 3] = normal;
+
+			vertIndex += 4;
+		}
+
+		// Front triangles
+		for (int i = 0; i < tris.Length; i += 3)
+		{
+			triangles[triIndex] = tris[i];
+			triangles[triIndex + 1] = tris[i + 1];
+			triangles[triIndex + 2] = tris[i + 2];
+			triIndex += 3;
+		}
+
+		// Back triangles
+		for (int i = 0; i < tris.Length; i += 3)
+		{
+			triangles[triIndex] = tris[i + 2] + points.Length;
+			triangles[triIndex + 1] = tris[i + 1] + points.Length;
+			triangles[triIndex + 2] = tris[i] + points.Length;
+			triIndex += 3;
+		}
+
+		// Side triangles
+		for (int i = 0; i < points.Length; i++)
+		{
+			int vert = frontVerticesCount + backVerticesCount + i * 4;
+			triangles[triIndex] = vert;
+			triangles[triIndex + 1] = vert + 2;
+			triangles[triIndex + 2] = vert + 1;
+			triangles[triIndex + 3] = vert + 2;
+			triangles[triIndex + 4] = vert + 3;
+			triangles[triIndex + 5] = vert + 1;
+			triIndex += 6;
+		}
+
 		m.vertices = vertices;
+		m.normals = normals;
 		m.triangles = triangles;
-		m.RecalculateNormals();
 		m.RecalculateBounds();
 		m.Optimize();
+
 		return m;
 	}
 
-    public Mesh Generate2DMesh(Vector2[] points)
+	public Mesh Generate2DMesh(Vector2[] points)
     {
         Mesh mesh = new Mesh();
 

@@ -6,6 +6,34 @@ using UnityEditor;
 [CustomEditor(typeof(FragManager))]
 public class FragManagerEditor : Editor
 {
+	public void UpdateFragList(FragManager fragManager)
+	{
+		fragManager.layoutFragList.Clear();
+		Frag[] fragArray = new Frag[fragManager.activeLayout.GetComponentsInChildren<Frag>(false).Length];
+		System.Array.Copy(fragManager.activeLayout.GetComponentsInChildren<Frag>(false), fragArray, fragArray.Length);
+		for (int i = 0; i < fragArray.Length; i++)
+		{
+			fragManager.layoutFragList.Add(fragArray[i]);
+		}
+
+		if (fragManager.fragSelection != null)
+		{
+			fragManager.activeFragList.Clear();
+			foreach (int fragIndex in fragManager.fragSelection.fragList)
+			{
+				fragManager.activeFragList.Add(fragManager.layoutFragList[fragIndex]);
+			}
+		}
+		else
+		{
+			fragManager.activeFragList.Clear();
+			foreach (Frag frag in fragManager.layoutFragList)
+			{
+				fragManager.activeFragList.Add(frag);
+			}
+		}
+	}
+
 	public override void OnInspectorGUI ()
 	{
 		base.OnInspectorGUI();
@@ -32,28 +60,41 @@ public class FragManagerEditor : Editor
 
 			fragManager.transform.GetChild(activeIndex).gameObject.SetActive(true);
 			fragManager.activeLayout = fragManager.transform.GetChild(activeIndex);
-			fragManager.m_fragList.Clear();
-			Frag[] fragArray = new Frag[fragManager.activeLayout.GetComponentsInChildren<Frag>(false).Length];
-			System.Array.Copy(fragManager.activeLayout.GetComponentsInChildren<Frag>(false), fragArray, fragArray.Length);
-			for(int i = 0; i < fragArray.Length; i++)
+			fragManager.layoutFragList.Clear();
+			UpdateFragList(fragManager);
+		}
+
+		if(fragManager.Mode == FragManager.MANAGER_MODE.AUTOTRIGGER && fragManager.RandomSettings)
+		{
+			if(GUILayout.Button("Randomize Frag Settings"))
 			{
-				fragManager.m_fragList.Add(fragArray[i]);
+				foreach(Frag frag in fragManager.activeFragList)
+				{
+					frag.FadeInDuration = Random.Range(fragManager.FadeInTimeMinMax.x, fragManager.FadeInTimeMinMax.y);
+					frag.Duration = Random.Range(fragManager.ActiveTimeMinMax.x, fragManager.ActiveTimeMinMax.y);
+					frag.FadeOutDuration = Random.Range(fragManager.FadeOutTimeMinMax.x, fragManager.FadeOutTimeMinMax.y);
+				}
 			}
+		}
+
+		if (GUILayout.Button("Update Frag Selection"))
+		{
+			UpdateFragList(fragManager);
 		}
 
 		if (GUILayout.Button("All Frags"))
 		{
-			GameObject[] gameObjectsToSelect = new GameObject[fragManager.m_fragList.Count];
+			GameObject[] gameObjectsToSelect = new GameObject[fragManager.layoutFragList.Count];
 
-			for (int i = 0; i < fragManager.m_fragList.Count; i++)
+			for (int i = 0; i < fragManager.layoutFragList.Count; i++)
 			{
-				gameObjectsToSelect[i] = fragManager.m_fragList[i].gameObject;
+				gameObjectsToSelect[i] = fragManager.layoutFragList[i].gameObject;
 			}
 
 			Selection.objects = gameObjectsToSelect;
 		}
 
-		if (fragManager.Mode == FragManager.MANAGER_MODE.SELECT && fragManager.fragSelection != null)
+		if (fragManager.fragSelection != null)
 		{
 			if (GUILayout.Button("Use Selection Frags"))
 			{
@@ -61,7 +102,7 @@ public class FragManagerEditor : Editor
 
 				for (int i = 0; i < fragManager.fragSelection.fragList.Count; i++)
 				{
-					gameObjectsToSelect[i] = fragManager.m_fragList[fragManager.fragSelection.fragList[i]].gameObject;
+					gameObjectsToSelect[i] = fragManager.layoutFragList[fragManager.fragSelection.fragList[i]].gameObject;
 				}
 
 				Selection.objects = gameObjectsToSelect;
@@ -69,15 +110,15 @@ public class FragManagerEditor : Editor
 
 			if (GUILayout.Button("Invert Selection Frags"))
 			{
-				GameObject[] gameObjectsToSelect = new GameObject[fragManager.m_fragList.Count - fragManager.fragSelection.fragList.Count];
+				GameObject[] gameObjectsToSelect = new GameObject[fragManager.layoutFragList.Count - fragManager.fragSelection.fragList.Count];
 
 				int selectionIndex = 0;
 
-				for (int i = 0; i < fragManager.m_fragList.Count; i++)
+				for (int i = 0; i < fragManager.layoutFragList.Count; i++)
 				{
 					if (!fragManager.fragSelection.fragList.Contains(i))
 					{
-						gameObjectsToSelect[selectionIndex] = fragManager.m_fragList[i].gameObject;
+						gameObjectsToSelect[selectionIndex] = fragManager.layoutFragList[i].gameObject;
 						selectionIndex++;
 					}
 				}

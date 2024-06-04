@@ -35,8 +35,8 @@ public class Chaser : MonoBehaviour
 
 	public float GrowSpeed = 1.0f;
 	public Vector2 MinMaxRadius = new Vector2(0, 1);
-	private CircleCollider2D m_circleCollider;
-	private BoxCollider2D m_boxCollider;
+	private SphereCollider m_circleCollider;
+	private BoxCollider m_boxCollider;
 	public float SleepTime = .2f;
 	private float SleepTimer = 0f;
 
@@ -65,14 +65,14 @@ public class Chaser : MonoBehaviour
 		switch(shapeMode)
         {
 			case ShapeMode.SPHERE:
-                m_circleCollider = GetComponent<CircleCollider2D>();
+                m_circleCollider = GetComponent<SphereCollider>();
 				
 				if(movementMode != MovementMode.NONE)
 					m_circleCollider.radius = Grow ? MinMaxRadius.x : MinMaxRadius.y;
                 
 				break;
 			case ShapeMode.RECT:
-				m_boxCollider = GetComponent<BoxCollider2D>();
+				m_boxCollider = GetComponent<BoxCollider>();
 				switch (movementMode)
 				{
 					case MovementMode.GROW:

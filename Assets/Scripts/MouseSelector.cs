@@ -17,8 +17,11 @@ public class MouseSelector : MonoBehaviour
 
 	private void Update ()
 	{
-		Vector3 Position = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-		transform.position = new Vector3(Position.x, Position.y, 0);
+		Vector3 mousePos = Input.mousePosition;
+		mousePos.z = Camera.main.orthographic ? 0 : -10f;
+		Vector3 desiredPosition = Camera.main.ScreenToWorldPoint(mousePos);
+		desiredPosition.z = 0;
+		transform.position = desiredPosition;
 
 		if (Input.GetMouseButtonDown(0))
 			selectionMode = SELECTION_MODE.ADD;
@@ -30,7 +33,7 @@ public class MouseSelector : MonoBehaviour
 	}
 
 
-	private void OnTriggerEnter2D ( Collider2D collision )
+	private void OnTriggerEnter ( Collider collision )
 	{
 		Frag frag = collision.GetComponent<Frag>();
 

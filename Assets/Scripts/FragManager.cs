@@ -15,15 +15,25 @@ public class FragManager : MonoBehaviour
 	public static FragManager Instance { get; private set;}
 
 	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
-	public float TriggerDelay = .1f;
+	public Vector2 TriggerDelayMinMax = new Vector2(.1f,1f);
+	private float TriggerDelay = 0f;
 	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
-	public int FragTriggered = 1;
+	public Vector2 FragTriggeredMinMax = new Vector2(1, 10);
+	private int FragTriggered = 0;
 	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
 	public bool RemoveTriggeredFrag = true;
 	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
 	public bool Loop = false;
 	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
 	public bool ForceTrigger = false;
+	[DrawIf("Mode", MANAGER_MODE.AUTOTRIGGER, ComparisonType.Equals)]
+	public bool RandomSettings = false;
+	[DrawIf("RandomSettings", true, ComparisonType.Equals)]
+	public Vector2 FadeInTimeMinMax = new Vector2(.1f, 2f);
+	[DrawIf("RandomSettings", true, ComparisonType.Equals)]
+	public Vector2 ActiveTimeMinMax = new Vector2(.1f, 2f);
+	[DrawIf("RandomSettings", true, ComparisonType.Equals)]
+	public Vector2 FadeOutTimeMinMax = new Vector2(.1f, 2f);
 
 	[DrawIf("Mode", MANAGER_MODE.SELECT, ComparisonType.Equals)]
 	public GameObject mouseSelector;
@@ -31,7 +41,10 @@ public class FragManager : MonoBehaviour
 	public FragSelection fragSelection;
 	private FragSelection FragIndexOrderObject;
 
-	public List<Frag> m_fragList = new List<Frag>();
+	public List<Frag> activeFragList = new List<Frag>();
+	[HideInInspector]
+	public List<Frag> layoutFragList = new List<Frag>();
+
 	private List<Frag> m_fragListCopy = new List<Frag>();
 	private float TriggerTimer = 0f;
 
@@ -40,6 +53,7 @@ public class FragManager : MonoBehaviour
 	public enum MANAGER_MODE
 	{
 		NONE,
+		CHASER,
 		AUTOTRIGGER,
 		SELECT
 	}
@@ -61,20 +75,19 @@ public class FragManager : MonoBehaviour
 
 	private void Init ()
 	{
-		foreach (Frag frag in m_fragList)
-		{
-			frag.Init(Mode,idleColor,activatedColor);
-		}
+		
 
 		switch (Mode)
 		{
 			case MANAGER_MODE.NONE:
 				break;
+			case MANAGER_MODE.CHASER:
+				break;
 			case MANAGER_MODE.AUTOTRIGGER:
 				
 				ChasersHolder.SetActive(false);
 
-				foreach (Frag frag in m_fragList)
+				foreach (Frag frag in activeFragList)
 					m_fragListCopy.Add(frag);
 
 				if (fragSelection != null)
@@ -82,9 +95,13 @@ public class FragManager : MonoBehaviour
 					m_fragListCopy = new();
 					for (int index = 0; index < fragSelection.fragList.Count; index++)
 					{
-						m_fragListCopy.Add(m_fragList[fragSelection.fragList[index]]);
+						m_fragListCopy.Add(layoutFragList[fragSelection.fragList[index]]);
 					}
 				}
+
+				FragTriggered = (int)Random.Range(FragTriggeredMinMax.x, FragTriggeredMinMax.y);
+				TriggerDelay = Random.Range(TriggerDelayMinMax.x, TriggerDelayMinMax.y);
+
 				break;
 			case MANAGER_MODE.SELECT:
 				FragIndexOrderObject = ScriptableObject.CreateInstance<FragSelection>();
@@ -94,6 +111,11 @@ public class FragManager : MonoBehaviour
 		}
 
 		mouseSelector.SetActive(Mode == MANAGER_MODE.SELECT);
+
+		foreach (Frag frag in m_fragListCopy)
+		{
+			frag.Init(Mode, idleColor, activatedColor);
+		}
 	}
 
 	// Update is called once per frame
@@ -110,8 +132,10 @@ public class FragManager : MonoBehaviour
 					TriggerTimer = 0f;
 					for (int i = 0; i < FragTriggered; i++)
 					{
-						TriggerFrag(fragSelection == null ? Random.Range(0, m_fragListCopy.Count) : 0);
+						TriggerFrag(Random.Range(0, m_fragListCopy.Count));
 					}
+					FragTriggered = (int)Random.Range(FragTriggeredMinMax.x, FragTriggeredMinMax.y);
+					TriggerDelay = Random.Range(TriggerDelayMinMax.x, TriggerDelayMinMax.y);
 				}
 				break;
 			case MANAGER_MODE.SELECT:
@@ -126,7 +150,7 @@ public class FragManager : MonoBehaviour
 		{
 			if (Loop)
 			{
-				foreach (Frag frag in m_fragList)
+				foreach (Frag frag in activeFragList)
 					m_fragListCopy.Add(frag);
 			}
 			return;
@@ -140,19 +164,19 @@ public class FragManager : MonoBehaviour
 
 	public void AddFragToSelection ( Frag frag )
 	{
-		if (!FragIndexOrderObject.fragList.Contains(m_fragList.IndexOf(frag)))
+		if (!FragIndexOrderObject.fragList.Contains(layoutFragList.IndexOf(frag)))
 		{
-			FragIndexOrderObject.fragList.Add(m_fragList.IndexOf(frag));
-			frag.SetColor(Color.white);
+			FragIndexOrderObject.fragList.Add(layoutFragList.IndexOf(frag));
+			frag.SetColor(Color.green);
 		}
 	}
 
 	public void RemoveFragFromSelection ( Frag frag )
 	{
-		if (FragIndexOrderObject.fragList.Contains(m_fragList.IndexOf(frag)))
+		if (FragIndexOrderObject.fragList.Contains(layoutFragList.IndexOf(frag)))
 		{
-			FragIndexOrderObject.fragList.Remove(m_fragList.IndexOf(frag));
-			frag.SetColor(new Color(1, 1, 1, .2f));
+			FragIndexOrderObject.fragList.Remove(layoutFragList.IndexOf(frag));
+			frag.SetColor(Color.white);
 		}
 	}
 
@@ -191,14 +215,14 @@ public class FragManager : MonoBehaviour
 		FragSelection old = AssetDatabase.LoadAssetAtPath<FragSelection>("Assets/Indexes/" + _selectionName + ".asset");
 
 		foreach (int index in FragIndexOrderObject.fragList)
-			m_fragList[index].SetColor(Color.green);
+			layoutFragList[index].SetColor(Color.green);
 
 		foreach (int index in old.fragList)
 		{
 			if (!FragIndexOrderObject.fragList.Contains(index))
-				m_fragList[index].SetColor(Color.red);
+				layoutFragList[index].SetColor(Color.red);
 			else
-				m_fragList[index].SetColor(Color.blue);
+				layoutFragList[index].SetColor(Color.blue);
 		}
 	}
 
@@ -208,10 +232,10 @@ public class FragManager : MonoBehaviour
 		FragIndexOrderObject = ScriptableObject.CreateInstance<FragSelection>(); ;
 		FragIndexOrderObject.fragList = savedIndexes;
 
-		foreach(Frag frag in m_fragList)
+		foreach(Frag frag in layoutFragList)
 			frag.SetColor(new Color(1, 1, 1, .2f));
 
 		foreach (int index in FragIndexOrderObject.fragList)
-			m_fragList[index].SetColor(Color.white);
+			layoutFragList[index].SetColor(Color.white);
 	}
 }
