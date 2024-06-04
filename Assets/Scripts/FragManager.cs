@@ -103,6 +103,7 @@ public class FragManager : MonoBehaviour
 				TriggerDelay = Random.Range(TriggerDelayMinMax.x, TriggerDelayMinMax.y);
 
 				break;
+			
 			case MANAGER_MODE.SELECT:
 				FragIndexOrderObject = ScriptableObject.CreateInstance<FragSelection>();
 				FragIndexOrderObject.fragList = new List<int>();
@@ -112,9 +113,10 @@ public class FragManager : MonoBehaviour
 
 		mouseSelector.SetActive(Mode == MANAGER_MODE.SELECT);
 
-		foreach (Frag frag in m_fragListCopy)
+		foreach (Frag frag in layoutFragList)
 		{
-			frag.Init(Mode, idleColor, activatedColor);
+			if(frag.gameObject.activeSelf)
+				frag.Init(Mode, idleColor, activatedColor);
 		}
 	}
 
@@ -233,7 +235,10 @@ public class FragManager : MonoBehaviour
 		FragIndexOrderObject.fragList = savedIndexes;
 
 		foreach(Frag frag in layoutFragList)
-			frag.SetColor(new Color(1, 1, 1, .2f));
+		{
+			if(frag.gameObject.activeSelf)
+				frag.SetColor(new Color(1, 1, 1, .2f));
+		}
 
 		foreach (int index in FragIndexOrderObject.fragList)
 			layoutFragList[index].SetColor(Color.white);

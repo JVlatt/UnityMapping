@@ -17,6 +17,7 @@ public class Chaser : MonoBehaviour
 		GROW,
 		SPIRAL,
 		MOVE,
+		ROTATE,
 		NONE
 	}
 
@@ -33,7 +34,9 @@ public class Chaser : MonoBehaviour
 
 	public float startDelay = 0f;
 
+	[DrawIf("movementMode", MovementMode.GROW, ComparisonType.Equals)]
 	public float GrowSpeed = 1.0f;
+	[DrawIf("movementMode", MovementMode.GROW, ComparisonType.Equals)]
 	public Vector2 MinMaxRadius = new Vector2(0, 1);
 	private SphereCollider m_circleCollider;
 	private BoxCollider m_boxCollider;
@@ -44,11 +47,16 @@ public class Chaser : MonoBehaviour
 	public bool Bounce = false;
 	public bool OneShot = false;
 
+	[DrawIf("movementMode", MovementMode.ROTATE, ComparisonType.Equals)]
 	public float RotationSpeed = 1.0f;
+	[DrawIf("movementMode", MovementMode.SPIRAL, ComparisonType.Equals)]
 	public float RadiusSpeed = 1.0f;
 
+	[DrawIf("shapeMode", ShapeMode.RECT, ComparisonType.Equals)]
 	public Vector2 RectStart = new Vector2(-1,-1);
+	[DrawIf("shapeMode", ShapeMode.RECT, ComparisonType.Equals)]
     public Vector2 RectTarget = Vector2.zero;
+	[DrawIf("shapeMode", ShapeMode.RECT, ComparisonType.Equals)]
 	public float RectSpeed = 1f;
 
 	private float ActiveRectDelta = 0f;
@@ -170,6 +178,9 @@ public class Chaser : MonoBehaviour
 						break;
 					case MovementMode.SPIRAL:
 						break;
+					case MovementMode.ROTATE:
+						transform.Rotate(new Vector3(0,0, RotationSpeed * Time.deltaTime));
+						break;
 					case MovementMode.MOVE:
 						ActiveRectDelta = Mathf.Clamp01(ActiveRectDelta + Time.deltaTime * RectSpeed * (Grow ? 1 : -1));
 						transform.position = Vector3.Lerp(RectStart, RectTarget, ActiveRectDelta);
@@ -223,7 +234,9 @@ public class Chaser : MonoBehaviour
 						break;
 					case MovementMode.MOVE:
 						break;
-
+					case MovementMode.ROTATE:
+						transform.Rotate(new Vector3(0, 0, RotationSpeed * Time.deltaTime));
+						break;
 				}
 				break;
 		}

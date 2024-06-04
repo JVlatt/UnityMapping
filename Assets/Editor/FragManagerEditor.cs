@@ -9,11 +9,12 @@ public class FragManagerEditor : Editor
 	public void UpdateFragList(FragManager fragManager)
 	{
 		fragManager.layoutFragList.Clear();
-		Frag[] fragArray = new Frag[fragManager.activeLayout.GetComponentsInChildren<Frag>(false).Length];
-		System.Array.Copy(fragManager.activeLayout.GetComponentsInChildren<Frag>(false), fragArray, fragArray.Length);
+		Frag[] fragArray = new Frag[fragManager.activeLayout.GetComponentsInChildren<Frag>(true).Length];
+		System.Array.Copy(fragManager.activeLayout.GetComponentsInChildren<Frag>(true), fragArray, fragArray.Length);
 		for (int i = 0; i < fragArray.Length; i++)
 		{
-			fragManager.layoutFragList.Add(fragArray[i]);
+			if(fragArray[i].transform.parent.gameObject.activeSelf)
+				fragManager.layoutFragList.Add(fragArray[i]);
 		}
 
 		if (fragManager.fragSelection != null)
@@ -32,6 +33,9 @@ public class FragManagerEditor : Editor
 				fragManager.activeFragList.Add(frag);
 			}
 		}
+
+		foreach(Frag frag in fragManager.activeFragList)
+			frag.gameObject.SetActive(true);
 	}
 
 	public override void OnInspectorGUI ()
