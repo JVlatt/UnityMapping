@@ -37,12 +37,12 @@ public class XMLReader : MonoBehaviour
 			string setupName = fileToRead.name + (generate3D ? "3D" : "2D");
 
             GameObject parent = new GameObject(setupName);
-			Transform fragManagerTransform = FindObjectOfType<FragManager>().transform;
+			Transform fragManagerTransform = FindFirstObjectByType<FragManager>().transform;
 			if (overrideExisting && fragManagerTransform.Find(setupName) != null)
 			{
 				DestroyImmediate(fragManagerTransform.Find(setupName).gameObject);
 			}
-			parent.transform.parent = FindObjectOfType<FragManager>().transform;
+			parent.transform.parent = FindFirstObjectByType<FragManager>().transform;
 
 			if (Directory.Exists("Assets/GeneratedMeshes/" + setupName))
 			{

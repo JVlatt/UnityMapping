@@ -59,8 +59,7 @@ public class Frag : MonoBehaviour
 		m_idleColor = _baseColor;
 		m_activeColor = shouldFadeIn ? m_idleColor : m_activatedColor;
 
-		m_material.SetColor("_Color", m_activeColor);
-
+		m_material.SetColor(m_material.shader.GetPropertyName(0), m_activeColor);
 		m_startPosition = transform.position;
 		m_endPosition = transform.position + targetOffsetPosition;
 		m_activePosition = shouldFadeIn ? m_startPosition : m_endPosition;
@@ -117,7 +116,7 @@ public class Frag : MonoBehaviour
 		{
 			case ActivationMode.COLOR:
 				m_activeColor = Color.Lerp(m_idleColor, m_activatedColor, Mathf.Clamp01(m_timer / FadeInDuration));
-				m_material.SetColor("_Color", m_activeColor);
+				m_material.SetColor(m_material.shader.GetPropertyName(0), m_activeColor);
 				break;
 			case ActivationMode.MOVE:
 				m_activePosition = Vector3.Lerp(m_startPosition, m_endPosition, Mathf.Clamp01(m_timer / FadeInDuration));
@@ -133,7 +132,7 @@ public class Frag : MonoBehaviour
 		{
 			case ActivationMode.COLOR:
 				m_activeColor = Color.Lerp(m_activatedColor, m_idleColor, Mathf.Clamp01(m_timer / FadeOutDuration));
-				m_material.SetColor("_Color", m_activeColor);
+				m_material.SetColor(m_material.shader.GetPropertyName(0), m_activeColor);
 				break;
 			case ActivationMode.MOVE:
 				m_activePosition = Vector3.Lerp(m_endPosition, m_startPosition, Mathf.Clamp01(m_timer / FadeOutDuration));

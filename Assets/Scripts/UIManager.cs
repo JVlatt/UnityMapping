@@ -11,7 +11,7 @@ public class UIManager : MonoBehaviour
 	public GameObject confirmPanel;
 	public GameObject overridePanel;
 
-	private bool m_merge = false;
+	//private bool m_merge = false;
 	private bool m_override = false;
 	private string m_selectionName = "";
 	public void DisplaySelectionMenu ()
