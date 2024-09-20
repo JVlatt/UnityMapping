@@ -254,7 +254,7 @@ namespace PathCreationEditor
 
 					for (int i = 0; i < creator.bezierPath.NumPoints; i++)
 					{
-						GameObject screenGO = new GameObject("Point");
+						GameObject screenGO = new GameObject("Point" + i);
 						screenGO.transform.parent = creator.transform;
 						screenGO.transform.position = creator.transform.position + creator.bezierPath.GetPoint(i);
 					}

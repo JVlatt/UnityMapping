@@ -8,7 +8,8 @@ public class Frag : MonoBehaviour
 	public enum ActivationMode
 	{
 		COLOR,
-		MOVE
+		MOVE,
+		SCALE
 	}
 
 	private enum State
@@ -48,6 +49,12 @@ public class Frag : MonoBehaviour
 	private Vector3 m_endPosition;
 	private Vector3 m_activePosition;
 
+	[DrawIf("activationMode", ActivationMode.SCALE, ComparisonType.Equals)]
+	public Vector3 targetOffsetScale = Vector3.zero;
+	private Vector3 m_startScale;
+	private Vector3 m_endScale;
+	private Vector3 m_activeScale;
+
 	private void Awake ()
 	{
 	}
@@ -60,9 +67,24 @@ public class Frag : MonoBehaviour
 		m_activeColor = shouldFadeIn ? m_idleColor : m_activatedColor;
 
 		m_material.SetColor(m_material.shader.GetPropertyName(0), m_activeColor);
+
+		switch (activationMode)
+		{
+			case ActivationMode.COLOR:
+				break;
+			case ActivationMode.MOVE:
 		m_startPosition = transform.position;
 		m_endPosition = transform.position + targetOffsetPosition;
 		m_activePosition = shouldFadeIn ? m_startPosition : m_endPosition;
+				break;
+			case ActivationMode.SCALE:
+				m_startScale = transform.localScale;
+				m_endScale = transform.localScale + targetOffsetScale;
+				m_activeScale = shouldFadeIn ? m_startScale : m_endScale;
+				break;
+			default:
+				break;
+		}
 
 	}
 
@@ -122,6 +144,10 @@ public class Frag : MonoBehaviour
 				m_activePosition = Vector3.Lerp(m_startPosition, m_endPosition, Mathf.Clamp01(m_timer / FadeInDuration));
 				transform.position = m_activePosition;
 				break;
+			case ActivationMode.SCALE:
+				m_activeScale = Vector3.Lerp(m_startScale, m_endScale, Mathf.Clamp01(m_timer / FadeInDuration));
+				transform.localScale = m_activeScale;
+				break;
 			default:
 				break;
 		}
@@ -137,6 +163,10 @@ public class Frag : MonoBehaviour
 			case ActivationMode.MOVE:
 				m_activePosition = Vector3.Lerp(m_endPosition, m_startPosition, Mathf.Clamp01(m_timer / FadeOutDuration));
 				transform.position = m_activePosition;
+				break;
+			case ActivationMode.SCALE:
+				m_activeScale = Vector3.Lerp(m_endScale, m_startScale, Mathf.Clamp01(m_timer / FadeOutDuration));
+				transform.localScale = m_activeScale;
 				break;
 			default:
 				break;
